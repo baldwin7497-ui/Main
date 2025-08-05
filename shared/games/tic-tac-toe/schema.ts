@@ -1,5 +1,5 @@
-// Tic-Tac-Toe Game Schema
-import type { BoardGameState, BaseChoice, GameTurn, GameConfig } from '../base/game-types';
+// Tic-tac-toe Game Schema
+import type { BoardGameState, BaseChoice, GameTurn, GameConfig } from '../base/types/game-types';
 
 export type TicTacToeSymbol = 'X' | 'O';
 export type TicTacToeCell = TicTacToeSymbol | null;
@@ -17,9 +17,20 @@ export interface TicTacToeMove {
 
 export interface TicTacToeGameState extends BoardGameState {
   gameType: 'tic-tac-toe';
+  roomId: string;
+  category: 'board-game';
+  playerIds: string[];
+  gameStatus: 'waiting_for_moves' | 'playing' | 'game_finished';
+  currentPlayer: string;
+  turnCount: number;
+  gameHistory: any[];
   board: TicTacToeBoard;
-  playerSymbols: Record<string, TicTacToeSymbol>; // playerId -> symbol
   boardSize: { width: 3; height: 3 };
+  disconnectedPlayers: string[];
+  createdAt: number;
+  lastUpdated: number;
+  // 틱택토 전용 필드들
+  playerSymbols: Record<string, TicTacToeSymbol>; // playerId -> symbol
 }
 
 export interface TicTacToeChoiceMessage extends BaseChoice {

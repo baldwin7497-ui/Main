@@ -4,7 +4,7 @@ import type {
   TurnGameHandlers,
   GameMove,
   GameResult 
-} from './game-types';
+} from '../types/game-types';
 
 // 턴 기반 게임을 위한 추상 핸들러 클래스
 export abstract class BaseTurnGameHandler<
@@ -173,5 +173,110 @@ export abstract class BaseTurnGameHandler<
     };
 
     return baseState as unknown as TGameState;
+  }
+
+  // 연결 관리 메서드들 (턴 기반 게임 공통)
+  async handlePlayerDisconnect(roomId: string, playerId: string): Promise<void> {
+    const gameState = await this.getGameState(roomId);
+    if (!gameState || gameState.gameType !== this.getGameType()) return;
+
+    console.log(`${this.getGameType()} 게임 플레이어 연결 해제 처리: ${playerId}`);
+
+    // 게임에 참여 중인 플레이어인지 확인
+    if (!gameState.playerIds.includes(playerId)) {
+      console.log(`플레이어 ${playerId}가 ${this.getGameType()} 게임에 없음`);
+      return;
+    }
+
+    // 연결 해제된 플레이어 목록에 추가 (중복 방지)
+    if (!gameState.disconnectedPlayers.includes(playerId)) {
+      gameState.disconnectedPlayers.push(playerId);
+    }
+
+    gameState.lastUpdated = Date.now();
+    await this.storage.updateGame(roomId, gameState);
+
+    // 클라이언트들에게 업데이트 브로드캐스트
+    this.broadcastToRoom(roomId, {
+      type: 'game_state',
+      data: gameState
+    });
+
+    console.log(`${this.getGameType()} 게임 연결 해제 처리 완료: ${playerId}, 연결 해제된 플레이어: ${gameState.disconnectedPlayers}`);
+  }
+
+  async handlePlayerReconnect(roomId: string, playerId: string): Promise<void> {
+    const gameState = await this.getGameState(roomId);
+    if (!gameState || gameState.gameType !== this.getGameType()) return;
+
+    console.log(`${this.getGameType()} 게임 플레이어 재연결 처리: ${playerId}`);
+
+    // 게임에 참여 중인 플레이어인지 확인
+    if (!gameState.playerIds.includes(playerId)) {
+      console.log(`플레이어 ${playerId}가 ${this.getGameType()} 게임에 없음`);
+      return;
+    }
+
+    // 연결 해제된 플레이어 목록에서 제거
+    const disconnectedIndex = gameState.disconnectedPlayers.indexOf(playerId);
+    if (disconnectedIndex > -1) {
+      gameState.disconnectedPlayers.splice(disconnectedIndex, 1);
+    }
+
+    gameState.lastUpdated = Date.now();
+    await this.storage.updateGame(roomId, gameState);
+
+    // 클라이언트들에게 업데이트 브로드캐스트
+    this.broadcastToRoom(roomId, {
+      type: 'game_state',
+      data: gameState
+    });
+
+    console.log(`${this.getGameType()} 게임 재연결 처리 완료: ${playerId}, 연결 해제된 플레이어: ${gameState.disconnectedPlayers}`);
+  }
+
+  async handlePlayerLeave(roomId: string, playerId: string): Promise<void> {
+    const gameState = await this.getGameState(roomId);
+    if (!gameState || gameState.gameType !== this.getGameType()) return;
+
+    console.log(`${this.getGameType()} 게임 플레이어 나가기 처리: ${playerId}`);
+
+    // 게임에 참여 중인 플레이어인지 확인
+    if (!gameState.playerIds.includes(playerId)) {
+      console.log(`플레이어 ${playerId}가 ${this.getGameType()} 게임에 없음`);
+      return;
+    }
+
+    // 게임이 진행 중이라면 특별 처리 (기본: 상대방 승리)
+    if (gameState.gameStatus === 'playing') {
+      await this.handleGameAbandonment(gameState, playerId, roomId);
+    }
+  }
+
+  // 게임 포기 처리 (서브클래스에서 오버라이드 가능)
+  protected async handleGameAbandonment(gameState: TGameState, leavingPlayerId: string, roomId: string): Promise<void> {
+    // 기본 구현: 다른 플레이어들을 승자로 처리
+    const remainingPlayers = gameState.playerIds.filter(id => id !== leavingPlayerId);
+    
+    if (remainingPlayers.length > 0) {
+      gameState.gameStatus = 'game_finished';
+      gameState.winners = remainingPlayers;
+      gameState.gameResult = {
+        winner: remainingPlayers[0], // 첫 번째 남은 플레이어를 승자로
+        reason: 'resign'
+      };
+      gameState.lastUpdated = Date.now();
+
+      await this.storage.updateGame(roomId, gameState);
+      await this.storage.updateRoom(roomId, { status: 'waiting' });
+
+      // 게임 종료 브로드캐스트
+      this.broadcastToRoom(roomId, {
+        type: 'game_end',
+        data: gameState
+      });
+
+      console.log(`${this.getGameType()} 게임 종료: ${leavingPlayerId} 나가기로 인한 ${remainingPlayers[0]} 승리`);
+    }
   }
 }

@@ -7,7 +7,8 @@ import type {
   RoundBasedGameState,
   TurnBasedGameState,
   BoardGameState,
-  GameMove 
+  GameMove,
+  GameStateMessage
 } from './game-types';
 
 // 기본 메시지 타입
@@ -41,16 +42,6 @@ export interface SuccessMessage<TData = any> extends BaseMessage {
   requestId?: string;
 }
 
-// 게임 상태 메시지
-export interface GameStateMessage<TState = CoreGameState> extends BaseMessage {
-  type: 'game_state';
-  data: {
-    gameState: TState;
-    gameType: string;
-    category: GameCategory;
-  };
-}
-
 // 게임 업데이트 메시지
 export interface GameUpdateMessage<TState = CoreGameState> extends BaseMessage {
   type: 'game_update';
@@ -72,6 +63,9 @@ export interface GameChoiceMessage extends BaseWebSocketMessage {
 export type ExtendedWebSocketMessage = 
   | BaseWebSocketMessage
   | GameChoiceMessage;
+
+// GameStateMessage를 game-types.ts에서 re-export
+export { GameStateMessage } from './game-types';
 
 // 메시지 타입 등록 시스템
 export class MessageTypeRegistry {

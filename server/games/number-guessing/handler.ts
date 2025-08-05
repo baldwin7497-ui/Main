@@ -1,16 +1,15 @@
-import { BaseGameHandler } from "@shared/games/base/base-game-handler";
+import { BaseRoundGameHandler } from "@shared/games/base/handlers/round-game-handler";
 import type { 
-  NumberGuess, 
   NumberGuessGameState, 
-  NumberGuessChoice, 
+  NumberGuessChoiceMessage, 
+  NumberGuess, 
   NumberGuessRound 
 } from "@shared/games/number-guessing/schema";
 import { NUMBER_GUESSING_CONFIG } from "@shared/games/number-guessing/schema";
-import type { GameResult } from "@shared/games/base/game-types";
 
-export class NumberGuessingHandler extends BaseGameHandler<
+export class NumberGuessingHandler extends BaseRoundGameHandler<
   NumberGuessGameState,
-  NumberGuessChoice,
+  NumberGuessChoiceMessage,
   NumberGuess,
   NumberGuessRound
 > {
@@ -19,18 +18,18 @@ export class NumberGuessingHandler extends BaseGameHandler<
   }
 
   protected getPlayerChoicesKey(): keyof NumberGuessGameState {
-    return 'playerNumbers';
+    return 'playerChoices';
   }
 
   protected getTargetAnswerKey(): keyof NumberGuessGameState {
-    return 'targetNumber';
+    return 'targetAnswer';
   }
 
   protected generateAnswer(): NumberGuess {
     return NUMBER_GUESSING_CONFIG.generateAnswer!();
   }
 
-  protected extractChoiceValue(choice: NumberGuessChoice): NumberGuess {
+  protected extractChoiceValue(choice: NumberGuessChoiceMessage): NumberGuess {
     return choice.number;
   }
 
@@ -39,68 +38,46 @@ export class NumberGuessingHandler extends BaseGameHandler<
   }
 
   protected createInitialGameState(roomId: string, playerIds: string[]): NumberGuessGameState {
-    const playerScores: Record<string, number> = {};
-    playerIds.forEach(playerId => {
-      playerScores[playerId] = 0;
-    });
-
     return {
       roomId,
       gameType: 'number-guessing',
       category: 'round-based',
       playerIds,
-      playerNumbers: {},
-      currentRound: 1,
-      maxRounds: this.getMaxRounds(),
-      playerScores,
       gameStatus: 'waiting_for_moves',
+      currentRound: 1,
+      maxRounds: NUMBER_GUESSING_CONFIG.maxRounds,
+      playerScores: {},
+      playerChoices: {},
+      playerNumbers: {},
+      targetAnswer: undefined,
+      targetNumber: undefined,
       roundHistory: [],
+      disconnectedPlayers: [],
       createdAt: Date.now(),
-      lastUpdated: Date.now(),
-      disconnectedPlayers: [] // 연결 관리 필드 초기화
+      lastUpdated: Date.now()
     };
   }
 
   protected createRoundHistory(
     round: number,
-    playerNumbers: Record<string, NumberGuess>,
-    targetNumber: NumberGuess,
+    playerChoices: Record<string, NumberGuess>,
+    targetAnswer: NumberGuess,
     winners: string[],
-    playerResults: Record<string, GameResult>
+    playerResults: Record<string, 'win' | 'lose' | 'draw'>
   ): NumberGuessRound {
     return {
       round,
-      playerNumbers,
-      targetNumber,
+      targetAnswer,
+      playerChoices,
+      playerNumbers: playerChoices,
+      targetNumber: targetAnswer,
       winners,
       playerResults
     };
   }
 
   protected getMaxRounds(): number {
-    return 3;
-  }
-
-  // 게임별 특수 처리 메서드들 (베이스 클래스의 공통 로직 사용)
-  protected async onPlayerLeave(game: NumberGuessGameState, playerId: string): Promise<void> {
-    // 플레이어 제거
-    const playerIndex = game.playerIds.indexOf(playerId);
-    if (playerIndex !== -1) {
-      game.playerIds.splice(playerIndex, 1);
-    }
-    
-    // 게임 데이터 정리
-    delete game.playerNumbers[playerId];
-    delete game.playerScores[playerId];
-
-    // 모든 플레이어가 선택을 완료했는지 확인
-    const allPlayersChosen = game.playerIds.every(playerId => 
-      game.playerNumbers[playerId] !== undefined
-    );
-    
-    if (allPlayersChosen) {
-      await this.processRound(game.roomId);
-    }
+    return NUMBER_GUESSING_CONFIG.maxRounds;
   }
 }
 

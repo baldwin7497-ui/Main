@@ -275,6 +275,12 @@ gameManager.registerGameComponent('rock-paper-scissors', RockPaperScissorsGame);
 messageRegistry.registerMessageType('rps_choice', {
   validate: (data) => ['rock', 'paper', 'scissors'].includes(data.choice)
 });
+
+// 4. CreateRoomModal 업데이트
+// - client/src/components/create-room-modal.tsx에서:
+// - gameType 타입에 새 게임 추가
+// - SelectContent에 새 게임 선택지 추가
+// - 필요시 특별한 플레이어 수 제한 로직 추가
 ```
 
 ## 🏭 코드 생성 및 템플릿
@@ -688,11 +694,21 @@ class GameErrorHandler {
 - [ ] 게임별 로직 구현 및 테스트
 - [ ] 서버/클라이언트 등록 완료
 - [ ] 메시지 타입 등록 및 검증
+- [ ] **✅ 연결 관리 자동 제공됨 (모든 베이스 클래스)**
 - [ ] 타입 에러 완전 해결
-- [ ] 연결 관리 테스트 완료
+- [ ] 연결 관리 테스트 완료 (연결 해제/재연결/나가기)
 - [ ] UI/UX 최적화
 - [ ] 성능 및 메모리 누수 검증
 - [ ] 문서화 및 주석 작성
+
+### 🔧 기존 게임 리팩토링 체크리스트
+
+- [ ] 현재 게임의 실제 로직 분석
+- [ ] 적절한 베이스 클래스 선택 (카테고리 기반)
+- [ ] 불필요한 코드 제거 (잘못된 베이스 클래스의 메서드들)
+- [ ] 게임별 특화 로직 유지
+- [ ] 타입 시스템 일관성 확인
+- [ ] 테스트 및 검증
 
 ---
 

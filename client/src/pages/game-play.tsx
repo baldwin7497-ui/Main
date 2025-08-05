@@ -14,7 +14,7 @@ import { NumberGuessingGame } from '@/components/game-play/number-guessing/Numbe
 import { OddEvenGame } from '@/components/game-play/odd-even/OddEvenGame';
 import { TicTacToeGame } from '@/components/game-play/tic-tac-toe/TicTacToeGame';
 import { BluffCardGame } from '@/components/game-play/bluff-card/BluffCardGame';
-// import { ChessGame } from '@/components/game-play/chess/ChessGame'; // TODO: 체스 컴포넌트 구현 후 활성화
+import { ChessGame } from '@/components/game-play/chess/ChessGame';
 import { GameLoading } from '@/components/game-play/common/game-loading';
 import { GameHeader } from '@/components/game-play/common/game-header';
 import { PlayersStatus } from '@/components/game-play/common/players-status';
@@ -237,39 +237,54 @@ export default function GamePlayPage({ roomId }: GamePlayPageProps) {
         return (
           <BluffCardGame
             gameState={gameState as BluffCardGameState}
-            selectedChoice={selectedChoice as any}
-            onChoiceSelect={handleChoiceSelection}
             isParticipant={isParticipant}
             moveSubmitted={moveSubmitted}
             room={room}
             currentUser={currentUser}
             gamePlayers={gamePlayers}
+            onMakeMove={(move) => {
+              // 턴 기반 게임은 move를 직접 메시지로 전송
+              sendMessage({
+                type: move.type as any,
+                roomId,
+                userId: currentUser?.id,
+                data: move
+              });
+              setMoveSubmitted(true);
+            }}
+            canMakeMove={!moveSubmitted && gameState.currentPlayer === currentUser?.id}
             onSendMessage={(message) => {
               sendMessage({
                 ...message,
                 roomId,
                 userId: currentUser?.id
               });
+              setMoveSubmitted(true);
             }}
           />
         );
 
       case 'chess':
         return (
-          <div className="text-center p-8">
-            <p className="text-white">체스 게임은 아직 구현 중입니다.</p>
-            {/* TODO: ChessGame 컴포넌트 구현 후 활성화
-            <ChessGame
-              gameState={gameState as ChessGameState}
-              onMoveSelect={(move) => {
-                // Chess move logic
-              }}
-              isParticipant={isParticipant}
-              currentUser={currentUser}
-              gamePlayers={gamePlayers}
-            />
-            */}
-          </div>
+          <ChessGame
+            gameState={gameState as ChessGameState}
+            onMakeMove={(move) => {
+              const metadata = gameManager.getGameMetadata('chess');
+              if (metadata) {
+                sendMessage({
+                  type: metadata.messageType as any,
+                  roomId,
+                  userId: currentUser?.id,
+                  data: { move }
+                });
+                setMoveSubmitted(true);
+              }
+            }}
+            isParticipant={isParticipant}
+            currentUser={currentUser}
+            gamePlayers={gamePlayers}
+            canMakeMove={!moveSubmitted && gameState.currentPlayer === currentUser?.id}
+          />
         );
       
       default:

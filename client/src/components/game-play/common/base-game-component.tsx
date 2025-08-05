@@ -3,12 +3,10 @@
 import React, { Component, ReactNode } from 'react';
 import type { 
   BaseGameProps, 
-  RoundBasedGameProps,
-  TurnBasedGameProps,
-  BoardGameProps,
-  GameCategory,
-  CoreGameState 
-} from '@shared/games/base/game-types';
+  RoundBasedGameProps, 
+  TurnBasedGameProps, 
+  BoardGameProps 
+} from '@shared/games/base/types/game-types';
 
 // 기본 게임 컴포넌트 상태
 export interface BaseGameComponentState {
@@ -87,7 +85,7 @@ export abstract class BaseGameComponent<
   }
 
   // 게임 상태 변경 핸들러
-  onGameStateChange?(newState: CoreGameState): void {
+  onGameStateChange?(newState: any): void {
     // 기본 구현: 아무것도 하지 않음
     // 서브클래스에서 필요시 오버라이드
   }

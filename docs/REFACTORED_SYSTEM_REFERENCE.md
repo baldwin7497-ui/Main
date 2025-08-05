@@ -37,6 +37,7 @@ client/src/components/game-play/common/base-game-component.tsx
 | 홀짝 | Round-based | BaseGameHandler | 간단 |
 | 블러프 카드 | Turn-based | BaseTurnGameHandler | 복잡 |
 | 틱택토 | Board-game | BaseBoardGameHandler | 중간 |
+| 체스 | Board-game | BaseBoardGameHandler | 복잡 |
 
 ## 🏗️ 실제 구현 패턴
 
@@ -162,6 +163,12 @@ export class MyGameHandler extends BaseGameHandler<MyGameState, MyChoiceMessage,
     return playerChoice === targetAnswer;
   }
   // createInitialGameState, createRoundHistory 메서드도 구현 필요
+
+  // ✅ 연결 관리는 모든 베이스 클래스에서 자동 제공됨!
+  // handlePlayerDisconnect, handlePlayerReconnect, handlePlayerLeave 메서드는
+  // 베이스 클래스에서 기본 구현을 제공하므로 별도 구현 불필요
+  
+  // 필요시 handleGameAbandonment를 오버라이드하여 게임별 포기 로직 커스터마이징 가능
 }
 ```
 
@@ -202,18 +209,33 @@ export function MyGame({ gameState, onChoiceSelect, selectedChoice, isParticipan
 
 #### 4단계: 등록 (5분)
 ```typescript
-// server/games/game-registry.ts에 추가
+// 1. server/games/game-registry.ts에 추가
 gameFactory.registerGame('my-game', MyGameHandler, { /* metadata */ });
 
-// client/src/lib/game-manager.ts에 추가
+// 2. client/src/lib/game-manager.ts에 추가
 this.gameMetadata.set('my-game', { /* metadata */ });
 
-// client/src/pages/game-play.tsx에 추가
+// 3. client/src/pages/game-play.tsx에 추가
 case 'my-game':
   return <MyGame {...commonProps} gameState={gameState as MyGameState} />;
+
+// 4. client/src/components/create-room-modal.tsx에 추가
+// - gameType 타입에 'my-game' 추가
+// - SelectContent에 <SelectItem value="my-game">내 게임</SelectItem> 추가
+// - 특별한 플레이어 수 제한이 있다면 조건부 로직 추가
 ```
 
 ### 🎯 베이스 클래스 메서드 활용
+
+#### ✅ 연결 관리 기능 베이스 클래스별 제공 상황
+
+| 베이스 클래스 | 연결 관리 메서드 | 비고 |
+|--------------|----------------|------|
+| `BaseGameHandler` | ✅ 자동 제공 | 라운드 기반 게임용 |
+| `BaseTurnGameHandler` | ✅ 자동 제공 | 턴 기반 게임용 |
+| `BaseBoardGameHandler` | ✅ 자동 제공 | 보드 게임용 |
+
+**✅ 모든 베이스 클래스에서 연결 관리 자동 제공**: 더 이상 개별 게임에서 연결 관리 메서드를 구현할 필요가 없습니다!
 
 #### BaseGameHandler 제공 메서드들
 ```typescript
@@ -236,6 +258,27 @@ protected isWithinBounds(row: number, col: number): boolean
 protected isPositionEmpty(board: any[][], row: number, col: number): boolean
 protected cloneBoard(board: any[][]): any[][]
 protected printBoard(board: any[][]): void  // 디버깅용
+```
+
+#### 연결 관리 커스터마이징 (선택사항)
+
+기본 연결 관리 동작을 변경하고 싶다면 `handleGameAbandonment` 메서드를 오버라이드:
+
+```typescript
+// 게임별 포기 처리 로직 커스터마이징
+protected async handleGameAbandonment(gameState: TGameState, leavingPlayerId: string, roomId: string): Promise<void> {
+  // 체스 예시: 2인 게임에서 한 명이 나가면 상대방 승리
+  const opponentId = gameState.playerIds.find(id => id !== leavingPlayerId);
+  if (opponentId) {
+    gameState.gameStatus = 'game_finished';
+    gameState.winners = [opponentId];
+    gameState.gameResult = { winner: opponentId, reason: 'resign' };
+    // ... 추가 체스 전용 로직
+  }
+  
+  // 부모 클래스의 기본 처리도 호출 가능
+  // await super.handleGameAbandonment(gameState, leavingPlayerId, roomId);
+}
 ```
 
 ### 🔍 디버깅 도구들

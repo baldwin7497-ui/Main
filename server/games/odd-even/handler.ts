@@ -1,16 +1,15 @@
-import { BaseGameHandler } from "@shared/games/base/base-game-handler";
+import { BaseRoundGameHandler } from "@shared/games/base/handlers/round-game-handler";
 import type { 
-  OddEvenGuess, 
   OddEvenGameState, 
-  OddEvenChoice, 
+  OddEvenChoiceMessage, 
+  OddEvenGuess, 
   OddEvenRound 
 } from "@shared/games/odd-even/schema";
 import { ODD_EVEN_CONFIG } from "@shared/games/odd-even/schema";
-import type { GameResult } from "@shared/games/base/game-types";
 
-export class OddEvenHandler extends BaseGameHandler<
+export class OddEvenHandler extends BaseRoundGameHandler<
   OddEvenGameState,
-  OddEvenChoice,
+  OddEvenChoiceMessage,
   OddEvenGuess,
   OddEvenRound
 > {
@@ -30,7 +29,7 @@ export class OddEvenHandler extends BaseGameHandler<
     return ODD_EVEN_CONFIG.generateAnswer!();
   }
 
-  protected extractChoiceValue(choice: OddEvenChoice): OddEvenGuess {
+  protected extractChoiceValue(choice: OddEvenChoiceMessage): OddEvenGuess {
     return choice.choice;
   }
 
@@ -39,25 +38,21 @@ export class OddEvenHandler extends BaseGameHandler<
   }
 
   protected createInitialGameState(roomId: string, playerIds: string[]): OddEvenGameState {
-    const playerScores: Record<string, number> = {};
-    playerIds.forEach(playerId => {
-      playerScores[playerId] = 0;
-    });
-
     return {
       roomId,
       gameType: 'odd-even',
       category: 'round-based',
       playerIds,
-      playerChoices: {},
-      currentRound: 1,
-      maxRounds: this.getMaxRounds(),
-      playerScores,
       gameStatus: 'waiting_for_moves',
+      currentRound: 1,
+      maxRounds: ODD_EVEN_CONFIG.maxRounds,
+      playerScores: {},
+      playerChoices: {},
+      targetAnswer: undefined,
       roundHistory: [],
+      disconnectedPlayers: [],
       createdAt: Date.now(),
-      lastUpdated: Date.now(),
-      disconnectedPlayers: [] // 연결 관리 필드 초기화
+      lastUpdated: Date.now()
     };
   }
 
@@ -66,41 +61,19 @@ export class OddEvenHandler extends BaseGameHandler<
     playerChoices: Record<string, OddEvenGuess>,
     targetAnswer: OddEvenGuess,
     winners: string[],
-    playerResults: Record<string, GameResult>
+    playerResults: Record<string, 'win' | 'lose' | 'draw'>
   ): OddEvenRound {
     return {
       round,
-      playerChoices,
       targetAnswer,
+      playerChoices,
       winners,
       playerResults
     };
   }
 
   protected getMaxRounds(): number {
-    return 3;
-  }
-
-  // 게임별 특수 처리 메서드들 (베이스 클래스의 공통 로직 사용)
-  protected async onPlayerLeave(game: OddEvenGameState, playerId: string): Promise<void> {
-    // 플레이어 제거
-    const playerIndex = game.playerIds.indexOf(playerId);
-    if (playerIndex !== -1) {
-      game.playerIds.splice(playerIndex, 1);
-    }
-    
-    // 게임 데이터 정리
-    delete game.playerChoices[playerId];
-    delete game.playerScores[playerId];
-
-    // 모든 플레이어가 선택을 완료했는지 확인
-    const allPlayersChosen = game.playerIds.every(playerId => 
-      game.playerChoices[playerId] !== undefined
-    );
-    
-    if (allPlayersChosen) {
-      await this.processRound(game.roomId);
-    }
+    return ODD_EVEN_CONFIG.maxRounds;
   }
 }
 

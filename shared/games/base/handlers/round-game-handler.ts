@@ -1,18 +1,18 @@
 import type { 
   BaseGameState, 
   BaseChoice, 
-  BaseGameHandlers, 
+  RoundGameHandlers, 
   GameResult,
   BaseRound 
-} from './game-types';
+} from '../types/game-types';
 
 // 추상 게임 핸들러 클래스
-export abstract class BaseGameHandler<
+export abstract class BaseRoundGameHandler<
   TGameState extends BaseGameState, 
   TChoice extends BaseChoice,
   TAnswer,
   TRound extends BaseRound
-> implements BaseGameHandlers<TGameState, TChoice> {
+> implements RoundGameHandlers<TGameState, TChoice> {
   
   protected storage: any;
   protected broadcastToRoom: Function;
@@ -39,7 +39,7 @@ export abstract class BaseGameHandler<
   ): TRound;
   protected abstract getMaxRounds(): number;
 
-  // BaseGameHandlers 인터페이스 구현
+  // RoundGameHandlers 인터페이스 구현
   async getGameState(roomId: string): Promise<TGameState | null> {
     return await this.storage.getGame(roomId) as TGameState | null;
   }

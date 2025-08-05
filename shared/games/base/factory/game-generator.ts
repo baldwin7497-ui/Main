@@ -5,7 +5,7 @@ import type {
   ExtendedGameConfig, 
   GameMetadata,
   GameDifficulty 
-} from './game-types';
+} from '../types/game-types';
 
 // 게임 템플릿 타입
 export interface GameTemplate {
@@ -331,13 +331,13 @@ export const {{GAME_NAME}}_CONFIG = {
 
     switch (category) {
       case 'round-based':
-        content = `import { BaseGameHandler } from '@shared/games/base/base-game-handler';
+        content = `import { BaseRoundGameHandler } from '@shared/games/base/round-game-handler';
 import type { 
   {{GameName}}GameState, 
   {{GameName}}Choice 
 } from './schema';
 
-export class {{GameName}}Handler extends BaseGameHandler<
+export class {{GameName}}Handler extends BaseRoundGameHandler<
   {{GameName}}GameState,
   {{GameName}}Choice,
   any, // TODO: 답 타입 정의

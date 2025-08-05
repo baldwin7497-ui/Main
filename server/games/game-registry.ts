@@ -1,10 +1,10 @@
 // 게임 등록 및 팩토리 설정
-import { gameFactory } from "@shared/games/base/game-factory";
+import { gameFactory } from "@shared/games/base/factory/game-factory";
 import { NumberGuessingHandler } from "./number-guessing/handler";
 import { OddEvenHandler } from "./odd-even/handler";
 import { TicTacToeHandler } from "./tic-tac-toe/handler";
 import { BluffCardHandler } from "./bluff-card/handler";
-// import { ChessHandler } from "./chess/handler"; // TODO: 체스 핸들러 구현 후 활성화
+import { ChessHandler } from "./chess/handler";
 import { NUMBER_GUESSING_CONFIG } from "@shared/games/number-guessing/schema";
 import { ODD_EVEN_CONFIG } from "@shared/games/odd-even/schema";
 import { TIC_TAC_TOE_CONFIG } from "@shared/games/tic-tac-toe/schema";
@@ -43,7 +43,7 @@ export function registerAllGames() {
     }
   );
 
-  // BluffCard 게임 등록
+  // BluffCard 게임 등록 (턴 기반 게임으로 변경)
   gameFactory.registerGame(
     'bluff-card',
     BluffCardHandler as any,
@@ -53,9 +53,10 @@ export function registerAllGames() {
     }
   );
 
-  // Chess 게임 등록 (일단 스키마만 등록, 핸들러는 추후 구현)
-  gameFactory.registerGameInfo(
+  // Chess 게임 등록
+  gameFactory.registerGame(
     'chess',
+    ChessHandler as any,
     {
       name: CHESS_CONFIG.name,
       description: CHESS_CONFIG.description

@@ -1,5 +1,5 @@
-// Chess Game Schema (예시 - 기본 구조)
-import type { BoardGameState, BaseChoice, GameTurn } from '../base/game-types';
+// Chess Game Schema
+import type { BoardGameState, BaseChoice, GameTurn, GameConfig } from '../base/types/game-types';
 
 export type ChessPieceType = 'pawn' | 'rook' | 'knight' | 'bishop' | 'queen' | 'king';
 export type ChessColor = 'white' | 'black';
@@ -29,9 +29,19 @@ export type ChessBoard = (ChessPiece | null)[][];
 
 export interface ChessGameState extends BoardGameState {
   gameType: 'chess';
+  roomId: string;
+  category: 'board-game';
+  playerIds: string[];
+  gameStatus: 'waiting_for_moves' | 'playing' | 'game_finished';
+  currentPlayer: string;
+  turnCount: number;
+  gameHistory: any[];
   board: ChessBoard;
   playerColors: Record<string, ChessColor>; // playerId -> color
   boardSize: { width: 8; height: 8 };
+  disconnectedPlayers: string[];
+  createdAt: number;
+  lastUpdated: number;
   // 체스 전용 필드들
   castlingRights: {
     white: { kingside: boolean; queenside: boolean };
@@ -80,14 +90,32 @@ export const INITIAL_CHESS_BOARD: ChessBoard = [
     { type: 'rook', color: 'black', hasMoved: false }
   ],
   // 흑색 폰들
-  Array(8).fill({ type: 'pawn', color: 'black', hasMoved: false }),
+  [
+    { type: 'pawn', color: 'black', hasMoved: false },
+    { type: 'pawn', color: 'black', hasMoved: false },
+    { type: 'pawn', color: 'black', hasMoved: false },
+    { type: 'pawn', color: 'black', hasMoved: false },
+    { type: 'pawn', color: 'black', hasMoved: false },
+    { type: 'pawn', color: 'black', hasMoved: false },
+    { type: 'pawn', color: 'black', hasMoved: false },
+    { type: 'pawn', color: 'black', hasMoved: false }
+  ],
   // 빈 칸들
-  Array(8).fill(null),
-  Array(8).fill(null),
-  Array(8).fill(null),
-  Array(8).fill(null),
+  [null, null, null, null, null, null, null, null],
+  [null, null, null, null, null, null, null, null],
+  [null, null, null, null, null, null, null, null],
+  [null, null, null, null, null, null, null, null],
   // 백색 폰들
-  Array(8).fill({ type: 'pawn', color: 'white', hasMoved: false }),
+  [
+    { type: 'pawn', color: 'white', hasMoved: false },
+    { type: 'pawn', color: 'white', hasMoved: false },
+    { type: 'pawn', color: 'white', hasMoved: false },
+    { type: 'pawn', color: 'white', hasMoved: false },
+    { type: 'pawn', color: 'white', hasMoved: false },
+    { type: 'pawn', color: 'white', hasMoved: false },
+    { type: 'pawn', color: 'white', hasMoved: false },
+    { type: 'pawn', color: 'white', hasMoved: false }
+  ],
   // 백색 말들 (아래쪽)
   [
     { type: 'rook', color: 'white', hasMoved: false },

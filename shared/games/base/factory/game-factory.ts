@@ -1,14 +1,14 @@
-import type { BaseGameHandlers, BaseGameState, BaseChoice } from './game-types';
+import type { RoundGameHandlers, BaseGameState, BaseChoice } from '../types/game-types';
 
 // 게임 팩토리 인터페이스
 export interface GameFactory {
-  createHandler(gameType: string, storage: any, broadcastToRoom: Function): BaseGameHandlers<any, any> | null;
+  createHandler(gameType: string, storage: any, broadcastToRoom: Function): RoundGameHandlers<any, any> | null;
   getSupportedGameTypes(): string[];
   getGameInfo(gameType: string): { name: string; description: string } | null;
 }
 
 // 게임 핸들러 생성자 타입
-export type GameHandlerConstructor<T extends BaseGameHandlers<any, any>> = new (
+export type GameHandlerConstructor<T extends RoundGameHandlers<any, any>> = new (
   storage: any, 
   broadcastToRoom: Function
 ) => T;
@@ -19,7 +19,7 @@ export class GameFactoryImpl implements GameFactory {
   private gameInfoRegistry = new Map<string, { name: string; description: string }>();
 
   // 게임 핸들러 등록
-  registerGame<T extends BaseGameHandlers<any, any>>(
+  registerGame<T extends RoundGameHandlers<any, any>>(
     gameType: string,
     handlerConstructor: GameHandlerConstructor<T>,
     gameInfo: { name: string; description: string }
@@ -37,7 +37,7 @@ export class GameFactoryImpl implements GameFactory {
   }
 
   // 게임 핸들러 생성
-  createHandler(gameType: string, storage: any, broadcastToRoom: Function): BaseGameHandlers<any, any> | null {
+  createHandler(gameType: string, storage: any, broadcastToRoom: Function): RoundGameHandlers<any, any> | null {
     const HandlerClass = this.handlerRegistry.get(gameType);
     if (!HandlerClass) {
       return null;

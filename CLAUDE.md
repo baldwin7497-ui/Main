@@ -103,11 +103,14 @@ Use the `GameGenerator` system documented in `docs/AI_GAME_DEVELOPMENT_ARCHITECT
 2. **Handler**: Implement server logic in `server/games/{game-name}/handler.ts` extending appropriate base class
 3. **UI**: Build React component in `client/src/components/game-play/{game-name}/`
 4. **Registration**: Add to game registry (`server/games/game-registry.ts`) and manager (`client/src/lib/game-manager.ts`)
+5. **Modal Update**: Add game option to CreateRoomModal in `client/src/components/create-room-modal.tsx`
 
 #### Key Requirements
 - All games MUST extend the appropriate base handler (`BaseGameHandler`, `BaseTurnGameHandler`, or `BaseBoardGameHandler`)
 - Game state MUST extend the corresponding state interface (`RoundBasedGameState`, `TurnBasedGameState`, or `BoardGameState`)
 - Both server and client registration is required for the game to function
+- CreateRoomModal must be updated to include the new game option for lobby integration
+- **✅ Connection management**: All base handlers now provide automatic connection management - no manual implementation needed
 
 ### Database & Storage
 
@@ -157,7 +160,7 @@ Use the `GameGenerator` system documented in `docs/AI_GAME_DEVELOPMENT_ARCHITECT
 - **Message system**: WebSocket messages follow typed pattern with `MessageBuilder` for consistency
 - **UI patterns**: Components follow consistent props pattern via `BaseGameProps` and category-specific interfaces
 - **Base class usage**: Always extend appropriate base handler class - NEVER implement handlers from scratch
-- **Connection management**: Base classes handle player disconnect/reconnect automatically
+- **Connection management**: All base handlers (`BaseGameHandler`, `BaseTurnGameHandler`, `BaseBoardGameHandler`) provide automatic connection management with disconnect/reconnect handling
 
 ### Game Category Selection Guide
 

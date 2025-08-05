@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,8 +27,15 @@ export function CreateRoomModal({ isOpen, onClose, currentUser }: CreateRoomModa
     description: "",
     maxPlayers: "6",
     isPrivate: false,
-    gameType: "number-guessing" as "number-guessing" | "odd-even" | "tic-tac-toe" | "bluff-card",
+    gameType: "number-guessing" as "number-guessing" | "odd-even" | "tic-tac-toe" | "bluff-card" | "chess",
   });
+
+  // 체스 게임 선택 시 자동으로 최대 인원을 2명으로 설정
+  useEffect(() => {
+    if (formData.gameType === "chess") {
+      setFormData(prev => ({ ...prev, maxPlayers: "2" }));
+    }
+  }, [formData.gameType]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,7 +145,7 @@ export function CreateRoomModal({ isOpen, onClose, currentUser }: CreateRoomModa
             </Label>
             <Select 
               value={formData.gameType} 
-              onValueChange={(value) => setFormData(prev => ({ ...prev, gameType: value as "number-guessing" | "odd-even" | "tic-tac-toe" | "bluff-card" }))}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, gameType: value as "number-guessing" | "odd-even" | "tic-tac-toe" | "bluff-card" | "chess" }))}
               disabled={isLoading}
             >
               <SelectTrigger className="bg-gray-700 border-gray-600 text-white focus:border-blue-500">
@@ -149,6 +156,7 @@ export function CreateRoomModal({ isOpen, onClose, currentUser }: CreateRoomModa
                 <SelectItem value="odd-even">홀짝 맞추기</SelectItem>
                 <SelectItem value="tic-tac-toe">틱택토</SelectItem>
                 <SelectItem value="bluff-card">속였군요?</SelectItem>
+                <SelectItem value="chess">체스</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -166,10 +174,16 @@ export function CreateRoomModal({ isOpen, onClose, currentUser }: CreateRoomModa
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-gray-700 border-gray-600">
-                <SelectItem value="4">4명</SelectItem>
-                <SelectItem value="6">6명</SelectItem>
-                <SelectItem value="8">8명</SelectItem>
-                <SelectItem value="10">10명</SelectItem>
+                {formData.gameType === "chess" ? (
+                  <SelectItem value="2">2명</SelectItem>
+                ) : (
+                  <>
+                    <SelectItem value="4">4명</SelectItem>
+                    <SelectItem value="6">6명</SelectItem>
+                    <SelectItem value="8">8명</SelectItem>
+                    <SelectItem value="10">10명</SelectItem>
+                  </>
+                )}
               </SelectContent>
             </Select>
           </div>

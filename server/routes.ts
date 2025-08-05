@@ -154,8 +154,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               actualTruth: message.data.actualTruth
             };
             const handler = getGameHandler('bluff-card');
-            if (handler && 'handleMessage' in handler) {
-              await handler.handleMessage(message.roomId, message.userId, playMessage);
+            if (handler && 'makeMove' in handler) {
+              await handler.makeMove(message.roomId, message.userId, playMessage);
             }
           } catch (error) {
             console.error('Error handling bluff card play:', error);
@@ -171,8 +171,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               challenge: message.data.challenge
             };
             const handler = getGameHandler('bluff-card');
-            if (handler && 'handleMessage' in handler) {
-              await handler.handleMessage(message.roomId, message.userId, challengeMessage);
+            if (handler && 'makeMove' in handler) {
+              await handler.makeMove(message.roomId, message.userId, challengeMessage);
             }
           } catch (error) {
             console.error('Error handling bluff card challenge:', error);

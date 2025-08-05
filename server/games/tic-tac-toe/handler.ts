@@ -1,4 +1,4 @@
-import { BaseBoardGameHandler } from "@shared/games/base/board-game-handler";
+import { BaseBoardGameHandler } from "@shared/games/base/handlers/board-game-handler";
 import type { 
   TicTacToeGameState,
   TicTacToeMove,
