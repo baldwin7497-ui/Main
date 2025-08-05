@@ -1,0 +1,166 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(0, 0%, 100%);
+  --foreground: hsl(20, 14.3%, 4.1%);
+  --muted: hsl(60, 4.8%, 95.9%);
+  --muted-foreground: hsl(25, 5.3%, 44.7%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(20, 14.3%, 4.1%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(20, 14.3%, 4.1%);
+  --border: hsl(20, 5.9%, 90%);
+  --input: hsl(20, 5.9%, 90%);
+  --primary: hsl(207, 90%, 54%);
+  --primary-foreground: hsl(211, 100%, 99%);
+  --secondary: hsl(60, 4.8%, 95.9%);
+  --secondary-foreground: hsl(24, 9.8%, 10%);
+  --accent: hsl(60, 4.8%, 95.9%);
+  --accent-foreground: hsl(24, 9.8%, 10%);
+  --destructive: hsl(0, 84.2%, 60.2%);
+  --destructive-foreground: hsl(60, 9.1%, 97.8%);
+  --ring: hsl(20, 14.3%, 4.1%);
+  --radius: 0.5rem;
+
+  /* Gaming theme colors */
+  --gaming-primary: hsl(235, 82%, 64%);
+  --gaming-secondary: hsl(236, 65%, 58%);
+  --gaming-dark-primary: hsl(227, 16%, 11%);
+  --gaming-dark-secondary: hsl(228, 12%, 19%);
+  --gaming-dark-tertiary: hsl(230, 7%, 23%);
+  --gaming-dark-quaternary: hsl(232, 6%, 27%);
+  --gaming-success: hsl(142, 76%, 73%);
+  --gaming-warning: hsl(47, 96%, 66%);
+  --gaming-error: hsl(358, 76%, 60%);
+  --gaming-text-primary: hsl(0, 0%, 100%);
+  --gaming-text-secondary: hsl(218, 11%, 74%);
+}
+
+.dark {
+  --background: hsl(240, 10%, 3.9%);
+  --foreground: hsl(0, 0%, 98%);
+  --muted: hsl(240, 3.7%, 15.9%);
+  --muted-foreground: hsl(240, 5%, 64.9%);
+  --popover: hsl(240, 10%, 3.9%);
+  --popover-foreground: hsl(0, 0%, 98%);
+  --card: hsl(240, 10%, 3.9%);
+  --card-foreground: hsl(0, 0%, 98%);
+  --border: hsl(240, 3.7%, 15.9%);
+  --input: hsl(240, 3.7%, 15.9%);
+  --primary: hsl(207, 90%, 54%);
+  --primary-foreground: hsl(211, 100%, 99%);
+  --secondary: hsl(240, 3.7%, 15.9%);
+  --secondary-foreground: hsl(0, 0%, 98%);
+  --accent: hsl(240, 3.7%, 15.9%);
+  --accent-foreground: hsl(0, 0%, 98%);
+  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --ring: hsl(240, 4.9%, 83.9%);
+  --radius: 0.5rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+
+  /* Gaming theme overrides */
+  .bg-gray-900 {
+    background-color: var(--gaming-dark-primary);
+  }
+
+  .bg-gray-800 {
+    background-color: var(--gaming-dark-secondary);
+  }
+
+  .bg-gray-700 {
+    background-color: var(--gaming-dark-tertiary);
+  }
+
+  .bg-gray-600 {
+    background-color: var(--gaming-dark-quaternary);
+  }
+
+  .text-blue-500 {
+    color: var(--gaming-primary);
+  }
+
+  .bg-blue-500 {
+    background-color: var(--gaming-primary);
+  }
+
+  .hover\:bg-blue-600:hover {
+    background-color: var(--gaming-secondary);
+  }
+
+  .bg-green-500 {
+    background-color: var(--gaming-success);
+  }
+
+  .bg-yellow-500 {
+    background-color: var(--gaming-warning);
+  }
+
+  .bg-red-600 {
+    background-color: var(--gaming-error);
+  }
+
+  .text-gray-400 {
+    color: var(--gaming-text-secondary);
+  }
+
+  .border-gray-700 {
+    border-color: var(--gaming-dark-tertiary);
+  }
+
+  .border-gray-600 {
+    border-color: var(--gaming-dark-quaternary);
+  }
+
+  .border-blue-500 {
+    border-color: var(--gaming-primary);
+  }
+
+  /* Ensure proper text contrast */
+  .text-white {
+    color: var(--gaming-text-primary);
+  }
+}
+
+/* Animation for connection status */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--gaming-dark-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--gaming-dark-quaternary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gaming-primary);
+}
