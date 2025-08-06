@@ -1,4 +1,4 @@
-import { BaseBoardGameHandler } from "@shared/games/base/handlers/board-game-handler";
+import { BaseTurnGameHandler } from "@shared/games/base/handlers/turn-based-game-handler";
 import type { 
   ChessGameState, 
   ChessMove, 
@@ -10,22 +10,10 @@ import type {
 } from "@shared/games/chess/schema";
 import { INITIAL_CHESS_BOARD } from "@shared/games/chess/schema";
 
-export class ChessHandler extends BaseBoardGameHandler<ChessGameState, ChessMove> {
+export class ChessHandler extends BaseTurnGameHandler<ChessGameState, ChessMove> {
   
   protected getGameType(): string {
     return 'chess';
-  }
-
-  protected getBoardSize(): { width: number; height: number } {
-    return { width: 8, height: 8 };
-  }
-
-  initializeBoard(boardSize: { width: number; height: number }): ChessBoard {
-    return INITIAL_CHESS_BOARD.map(row => row.map(piece => piece ? { ...piece } : null));
-  }
-
-  protected validatePositionInternal(position: ChessPosition, boardSize: { width: number; height: number }): boolean {
-    return position.row >= 0 && position.row < 8 && position.col >= 0 && position.col < 8;
   }
 
   protected initializeGameState(roomId: string, playerIds: string[]): ChessGameState {
@@ -39,9 +27,11 @@ export class ChessHandler extends BaseBoardGameHandler<ChessGameState, ChessMove
       [playerIds[1]]: 'black'
     };
 
-    return this.createBaseBoardGameState(roomId, playerIds, 'chess', {
+    return this.createBaseTurnGameState(roomId, playerIds, 'chess', {
       category: 'board-game',
       disconnectedPlayers: [],
+      board: this.initializeBoard(),
+      boardSize: { width: 8, height: 8 },
       playerColors,
       castlingRights: {
         white: { kingside: true, queenside: true },
@@ -50,6 +40,21 @@ export class ChessHandler extends BaseBoardGameHandler<ChessGameState, ChessMove
       halfMoveClock: 0,
       fullMoveNumber: 1
     });
+  }
+
+  // 보드 초기화
+  private initializeBoard(): ChessBoard {
+    return INITIAL_CHESS_BOARD.map(row => row.map(piece => piece ? { ...piece } : null));
+  }
+
+  // 위치 유효성 검사
+  private validatePosition(position: ChessPosition): boolean {
+    return position.row >= 0 && position.row < 8 && position.col >= 0 && position.col < 8;
+  }
+
+  // 보드 복사 헬퍼
+  private cloneBoard(board: ChessBoard): ChessBoard {
+    return board.map(row => [...row]);
   }
 
   validateMove(gameState: ChessGameState, userId: string, move: ChessMove): boolean {

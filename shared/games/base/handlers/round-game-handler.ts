@@ -5,6 +5,7 @@ import type {
   GameResult,
   BaseRound 
 } from '../types/game-types';
+import { BaseGameHandler } from './base-game-handler';
 
 // 추상 게임 핸들러 클래스
 export abstract class BaseRoundGameHandler<
@@ -12,18 +13,9 @@ export abstract class BaseRoundGameHandler<
   TChoice extends BaseChoice,
   TAnswer,
   TRound extends BaseRound
-> implements RoundGameHandlers<TGameState, TChoice> {
+> extends BaseGameHandler<TGameState> implements RoundGameHandlers<TGameState, TChoice> {
   
-  protected storage: any;
-  protected broadcastToRoom: Function;
-  
-  constructor(storage: any, broadcastToRoom: Function) {
-    this.storage = storage;
-    this.broadcastToRoom = broadcastToRoom;
-  }
-
   // 추상 메서드들 - 각 게임에서 구현
-  protected abstract getGameType(): string;
   protected abstract getPlayerChoicesKey(): keyof TGameState;
   protected abstract getTargetAnswerKey(): keyof TGameState;
   protected abstract generateAnswer(): TAnswer;
@@ -39,18 +31,9 @@ export abstract class BaseRoundGameHandler<
   ): TRound;
   protected abstract getMaxRounds(): number;
 
-  // RoundGameHandlers 인터페이스 구현
-  async getGameState(roomId: string): Promise<TGameState | null> {
-    return await this.storage.getGame(roomId) as TGameState | null;
-  }
-
-  async endGame(roomId: string): Promise<void> {
-    const game = await this.getGameState(roomId);
-    if (game) {
-      game.gameStatus = 'game_finished';
-      await this.storage.updateGame(roomId, game);
-      await this.storage.updateRoom(roomId, { status: 'waiting' });
-    }
+  // BaseGameHandler의 initializeGameState를 createInitialGameState로 매핑
+  protected initializeGameState(roomId: string, playerIds: string[]): TGameState {
+    return this.createInitialGameState(roomId, playerIds);
   }
 
   async handleChoice(roomId: string, userId: string, choice: TChoice): Promise<void> {
@@ -99,202 +82,78 @@ export abstract class BaseRoundGameHandler<
     );
     if (!allPlayersChosen) return;
 
-    // Generate target answer for this round if not set
-    if (!(game[targetAnswerKey] as TAnswer)) {
-      (game[targetAnswerKey] as TAnswer) = this.generateAnswer();
-    }
+    // Generate target answer for this round
+    const targetAnswer = this.generateAnswer();
+    (game[targetAnswerKey] as any) = targetAnswer;
 
-    const targetAnswer = game[targetAnswerKey] as TAnswer;
-    const playerChoices = game[choicesKey] as Record<string, any>;
-
-    // Determine round winners
-    const roundWinners: string[] = [];
+    // Calculate results for each player
     const playerResults: Record<string, GameResult> = {};
-    
-    game.playerIds.forEach(playerId => {
-      const playerChoice = playerChoices[playerId];
+    const winners: string[] = [];
+
+    for (const playerId of game.playerIds) {
+      const playerChoice = (game[choicesKey] as Record<string, any>)[playerId];
       const isCorrect = this.isCorrectChoice(playerChoice, targetAnswer);
       
+      playerResults[playerId] = isCorrect ? 'win' : 'lose';
       if (isCorrect) {
-        roundWinners.push(playerId);
-        game.playerScores[playerId]++;
-        playerResults[playerId] = 'win';
-      } else {
-        playerResults[playerId] = 'lose';
+        winners.push(playerId);
+        game.playerScores[playerId] = (game.playerScores[playerId] || 0) + 1;
       }
-    });
-
-    // If no one or everyone got it right, it's a draw for all
-    if (roundWinners.length === 0 || roundWinners.length === game.playerIds.length) {
-      game.playerIds.forEach(playerId => {
-        playerResults[playerId] = 'draw';
-      });
     }
 
-    // Add to round history
+    // Create round history
     const roundHistory = this.createRoundHistory(
       game.currentRound,
-      { ...playerChoices },
+      game[choicesKey] as Record<string, any>,
       targetAnswer,
-      roundWinners,
+      winners,
       playerResults
     );
-    
+
     (game as any).roundHistory.push(roundHistory);
+    game.currentRound++;
 
     // Check if game is finished
-    if (game.currentRound >= this.getMaxRounds()) {
+    if (game.currentRound > game.maxRounds) {
       game.gameStatus = 'game_finished';
       
-      // Find overall winners (highest scores)
+      // Determine final winners (players with highest scores)
       const maxScore = Math.max(...Object.values(game.playerScores));
-      game.winners = game.playerIds.filter(playerId => game.playerScores[playerId] === maxScore);
-
-      // Update room status back to waiting
-      await this.storage.updateRoom(roomId, { status: 'waiting' });
-      
-      this.broadcastToRoom(roomId, {
-        type: 'game_end',
-        data: game
-      });
+      game.winners = Object.keys(game.playerScores).filter(
+        playerId => game.playerScores[playerId] === maxScore
+      );
     } else {
-      // Prepare for next round
-      game.currentRound++;
+      // Reset for next round
       game.gameStatus = 'waiting_for_moves';
-      (game[choicesKey] as Record<string, any>) = {}; // Reset all player choices
-      (game[targetAnswerKey] as TAnswer | undefined) = undefined; // Will be generated in next round
-      
-      this.broadcastToRoom(roomId, {
-        type: 'round_result',
-        data: game
-      });
+      (game[choicesKey] as Record<string, any>) = {};
+      (game[targetAnswerKey] as any) = undefined;
     }
 
     await this.storage.updateGame(roomId, game);
-  }
 
-  async createGame(roomId: string, playerIds: string[]): Promise<TGameState> {
-    const gameState = this.createInitialGameState(roomId, playerIds);
-    await this.storage.updateGame(roomId, gameState);
-    console.log(`${this.getGameType()} game created:`, gameState);
-    return gameState;
-  }
-
-  // 공통 연결 관리 메서드들
-  async handlePlayerDisconnect(roomId: string, playerId: string): Promise<void> {
-    const game = await this.storage.getGame(roomId) as TGameState | undefined;
-    if (!game || game.gameType !== this.getGameType()) return;
-
-    console.log(`${this.getGameType()} 플레이어 연결 해제 처리: ${playerId}`);
-
-    // 게임에 참여 중인 플레이어인지 확인
-    const playerIndex = game.playerIds.indexOf(playerId);
-    if (playerIndex === -1) {
-      console.log(`플레이어 ${playerId}가 게임에 없음`);
-      return;
-    }
-
-    // 연결이 끊긴 플레이어 목록에 추가
-    if (!game.disconnectedPlayers) {
-      game.disconnectedPlayers = [];
-    }
-    if (!game.disconnectedPlayers.includes(playerId)) {
-      game.disconnectedPlayers.push(playerId);
-    }
-
-    // 게임별 특수 연결 해제 처리 (오버라이드 가능)
-    await this.onPlayerDisconnect(game, playerId);
-
-    // 게임 상태 업데이트 및 브로드캐스트
-    await this.storage.updateGame(roomId, game);
-    this.broadcastToRoom(roomId, { type: 'game_update', data: game });
-
-    console.log(`${this.getGameType()} 플레이어 연결 해제 처리 완료: ${playerId}, 남은 플레이어: ${game.playerIds.length}`);
-  }
-
-  async handlePlayerReconnect(roomId: string, playerId: string): Promise<void> {
-    const game = await this.storage.getGame(roomId) as TGameState | undefined;
-    if (!game || game.gameType !== this.getGameType()) return;
-
-    console.log(`${this.getGameType()} 플레이어 재연결 처리: ${playerId}`);
-
-    // 게임에 참여 중인 플레이어인지 확인
-    const playerIndex = game.playerIds.indexOf(playerId);
-    if (playerIndex === -1) {
-      console.log(`플레이어 ${playerId}가 게임에 없음`);
-      return;
-    }
-
-    // 연결이 끊긴 플레이어 목록에서 제거
-    if (game.disconnectedPlayers) {
-      const disconnectIndex = game.disconnectedPlayers.indexOf(playerId);
-      if (disconnectIndex !== -1) {
-        game.disconnectedPlayers.splice(disconnectIndex, 1);
-        console.log(`플레이어 ${playerId}를 연결 해제 목록에서 제거`);
-      }
-    }
-
-    // 게임별 특수 재연결 처리 (오버라이드 가능)
-    await this.onPlayerReconnect(game, playerId);
-
-    // 게임 상태 업데이트 및 브로드캐스트
-    await this.storage.updateGame(roomId, game);
-    this.broadcastToRoom(roomId, { 
-      type: 'player_reconnected', 
-      data: { userId: playerId } 
+    // Broadcast round result
+    this.broadcastToRoom(roomId, {
+      type: game.gameStatus === 'game_finished' ? 'game_end' : 'round_result',
+      data: game
     });
-    this.broadcastToRoom(roomId, { type: 'game_update', data: game });
-
-    console.log(`${this.getGameType()} 플레이어 재연결 처리 완료: ${playerId}`);
   }
 
-  async handlePlayerLeave(roomId: string, playerId: string): Promise<void> {
-    const game = await this.storage.getGame(roomId) as TGameState | undefined;
-    if (!game || game.gameType !== this.getGameType()) return;
-
-    console.log(`${this.getGameType()} 플레이어 퇴장 처리: ${playerId}`);
-
-    // 게임에 참여 중인 플레이어인지 확인
-    const playerIndex = game.playerIds.indexOf(playerId);
-    if (playerIndex === -1) {
-      console.log(`플레이어 ${playerId}가 게임에 없음`);
-      return;
-    }
-
-    // 게임별 특수 퇴장 처리 (오버라이드 가능)
-    await this.onPlayerLeave(game, playerId);
-
-    // 게임 상태 업데이트 및 브로드캐스트
-    await this.storage.updateGame(roomId, game);
-    this.broadcastToRoom(roomId, { type: 'game_update', data: game });
-
-    console.log(`${this.getGameType()} 플레이어 퇴장 처리 완료: ${playerId}, 남은 플레이어: ${game.playerIds.length}`);
-  }
-
-  // 게임별 특수 처리 메서드들 (기본 구현은 빈 함수)
+  // 게임별 특수 처리 메서드들 (서브클래스에서 오버라이드 가능)
   protected async onPlayerDisconnect(game: TGameState, playerId: string): Promise<void> {
     // 기본 구현: 아무것도 하지 않음
-    // 각 게임에서 필요시 오버라이드
+    // 서브클래스에서 필요시 오버라이드
   }
 
   protected async onPlayerReconnect(game: TGameState, playerId: string): Promise<void> {
     // 기본 구현: 아무것도 하지 않음
-    // 각 게임에서 필요시 오버라이드
+    // 서브클래스에서 필요시 오버라이드
   }
 
   protected async onPlayerLeave(game: TGameState, playerId: string): Promise<void> {
-    // 기본 구현: 플레이어를 게임에서 제거
-    const playerIndex = game.playerIds.indexOf(playerId);
-    if (playerIndex !== -1) {
-      game.playerIds.splice(playerIndex, 1);
-    }
-    
-    // 연결 해제 목록에서도 제거
-    if (game.disconnectedPlayers) {
-      const disconnectIndex = game.disconnectedPlayers.indexOf(playerId);
-      if (disconnectIndex !== -1) {
-        game.disconnectedPlayers.splice(disconnectIndex, 1);
-      }
-    }
+    // 기본 구현: 아무것도 하지 않음
+    // 서브클래스에서 필요시 오버라이드
   }
+
+  // 연결 관리는 BaseGameHandler에서 처리
+  // 게임별 특수 처리가 필요한 경우 onPlayerDisconnect, onPlayerReconnect, onPlayerLeave 메서드를 오버라이드하여 구현
 }

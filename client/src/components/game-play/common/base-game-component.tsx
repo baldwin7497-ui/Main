@@ -4,8 +4,8 @@ import React, { Component, ReactNode } from 'react';
 import type { 
   BaseGameProps, 
   RoundBasedGameProps, 
-  TurnBasedGameProps, 
-  BoardGameProps 
+  TurnBasedGameProps,
+  TurnBasedGameState
 } from '@shared/games/base/types/game-types';
 
 // 기본 게임 컴포넌트 상태
@@ -120,28 +120,45 @@ export abstract class BaseGameComponent<
   }
 
   protected renderPlayerList(): ReactNode {
-    const { gamePlayers, currentUser } = this.props;
+    const { gamePlayers, currentUser, gameState } = this.props;
     
     return (
       <div className="players-list bg-gray-100 p-4 rounded-lg mb-4">
         <h3 className="text-lg font-semibold mb-2">플레이어</h3>
         <div className="space-y-2">
-          {gamePlayers.map((player) => (
-            <div 
-              key={player.userId} 
-              className={`flex items-center p-2 rounded ${
-                player.userId === currentUser?.id ? 'bg-blue-100' : 'bg-white'
-              }`}
-            >
-              <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center mr-3">
-                {player.user.name[0].toUpperCase()}
+          {gamePlayers.map((player) => {
+            const isDisconnected = gameState.disconnectedPlayers?.includes(player.userId) || false;
+            
+            return (
+              <div 
+                key={player.userId} 
+                className={`flex items-center p-2 rounded ${
+                  player.userId === currentUser?.id ? 'bg-blue-100' : 'bg-white'
+                }`}
+              >
+                <div className="flex items-center mr-3">
+                  <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center mr-2">
+                    {player.user.name[0].toUpperCase()}
+                  </div>
+                  <div 
+                    className={`w-3 h-3 rounded-full ${
+                      isDisconnected ? 'bg-red-500' : 'bg-green-500'
+                    }`}
+                    title={isDisconnected ? '연결 해제됨' : '연결됨'}
+                  />
+                </div>
+                <span className={`font-medium ${isDisconnected ? 'text-gray-500' : ''}`}>
+                  {player.user.name}
+                </span>
+                {player.userId === currentUser?.id && (
+                  <span className="ml-2 text-blue-600 text-sm">(나)</span>
+                )}
+                {isDisconnected && (
+                  <span className="ml-2 text-red-500 text-sm">(연결 해제)</span>
+                )}
               </div>
-              <span className="font-medium">{player.user.name}</span>
-              {player.userId === currentUser?.id && (
-                <span className="ml-2 text-blue-600 text-sm">(나)</span>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     );
@@ -288,6 +305,7 @@ export abstract class TurnBasedGameComponent<
             당신의 차례입니다!
           </div>
         )}
+        {this.renderKickVoteStatus()}
       </div>
     );
   }
@@ -302,6 +320,89 @@ export abstract class TurnBasedGameComponent<
     const { onMakeMove } = this.props;
     if (onMakeMove) {
       onMakeMove(action);
+    }
+  }
+
+  // 퇴출 투표 상태 렌더링
+  protected renderKickVoteStatus(): ReactNode {
+    const { gameState, currentUser } = this.props;
+    const turnGameState = gameState as TurnBasedGameState;
+    
+    if (!turnGameState.kickVote) {
+      return null;
+    }
+
+    const { targetPlayerId, agreeVotes, disagreeVotes, voteEndTime } = turnGameState.kickVote;
+    const targetPlayerName = this.getPlayerName(targetPlayerId);
+    const hasVotedAgree = agreeVotes.includes(currentUser?.id || '');
+    const hasVotedDisagree = disagreeVotes.includes(currentUser?.id || '');
+    const hasVoted = hasVotedAgree || hasVotedDisagree;
+    const timeLeft = Math.max(0, Math.ceil((voteEndTime - Date.now()) / 1000));
+    
+    // 연결된 플레이어 수 계산 (투표 대상 제외)
+    const connectedPlayers = turnGameState.playerIds.filter(
+      id => !turnGameState.disconnectedPlayers.includes(id) && id !== targetPlayerId
+    );
+    const totalVotes = agreeVotes.length + disagreeVotes.length;
+
+    return (
+      <div className="kick-vote-status mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
+        <div className="text-sm font-medium text-yellow-800 mb-2">
+          퇴출 투표 진행 중
+        </div>
+        <div className="text-xs text-yellow-700 space-y-1">
+          <div>대상: {targetPlayerName}</div>
+          <div>투표 현황: 
+            <span className="font-semibold text-red-600 mx-1">찬성 {agreeVotes.length}</span> / 
+            <span className="font-semibold text-blue-600 mx-1">반대 {disagreeVotes.length}</span>
+            <span className="text-gray-600"> ({totalVotes}/{connectedPlayers.length})</span>
+          </div>
+          <div>남은 시간: {timeLeft}초</div>
+        </div>
+        {!hasVoted && currentUser?.id !== targetPlayerId && (
+          <div className="mt-2 flex gap-2">
+            <button
+              onClick={() => this.handleKickVote(targetPlayerId, 'agree')}
+              className="px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 flex-1"
+            >
+              찬성 (퇴출)
+            </button>
+            <button
+              onClick={() => this.handleKickVote(targetPlayerId, 'disagree')}
+              className="px-3 py-1 border border-blue-500 text-blue-600 text-xs rounded hover:bg-blue-50 flex-1"
+            >
+              반대 (유지)
+            </button>
+          </div>
+        )}
+        {hasVoted && (
+          <div className={`mt-2 text-xs font-semibold ${hasVotedAgree ? 'text-red-600' : 'text-blue-600'}`}>
+            ✓ {hasVotedAgree ? '찬성' : '반대'} 투표 완료
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // 퇴출 투표 처리
+  protected handleKickVote = async (targetPlayerId: string, voteType: 'agree' | 'disagree') => {
+    try {
+      // WebSocket을 통해 투표 메시지 전송
+      const websocket = (window as any).gameWebSocket;
+      if (websocket && websocket.readyState === WebSocket.OPEN) {
+        websocket.send(JSON.stringify({
+          type: 'kick_vote',
+          roomId: this.props.room.id,
+          userId: this.props.currentUser?.id,
+          data: {
+            targetPlayerId,
+            voteType
+          }
+        }));
+      }
+    } catch (error) {
+      console.error('Error sending kick vote:', error);
+      this.setState({ error: '투표 전송에 실패했습니다.' });
     }
   }
 
@@ -324,43 +425,37 @@ export abstract class TurnBasedGameComponent<
 
 // 보드 게임 컴포넌트
 export abstract class BoardGameComponent<
-  TProps extends BoardGameProps<any, any> = BoardGameProps<any, any>,
+  TGameState extends TurnBasedGameState = TurnBasedGameState,
+  TMove = any,
+  TProps extends TurnBasedGameProps<TGameState, TMove> = TurnBasedGameProps<TGameState, TMove>,
   TState extends BaseGameComponentState = BaseGameComponentState
 > extends TurnBasedGameComponent<TProps, TState> {
-
+  
   protected getGameSpecificStatus(): ReactNode {
-    const baseStatus = super.getGameSpecificStatus();
     const { gameState } = this.props;
     
+    if (!gameState.board) {
+      return <div className="text-gray-500">보드 상태를 불러올 수 없습니다.</div>;
+    }
+
     return (
-      <div>
-        {baseStatus}
-        <div className="board-info mt-2">
-          <div className="flex justify-between text-sm">
-            <span>보드 크기:</span>
-            <span>{gameState.boardSize.width} × {gameState.boardSize.height}</span>
-          </div>
-        </div>
+      <div className="text-sm text-gray-600">
+        보드 크기: {gameState.boardSize?.width || 'N/A'} x {gameState.boardSize?.height || 'N/A'}
       </div>
     );
   }
 
-  // 보드 클릭 핸들러
+  // 보드 클릭 핸들러 (서브클래스에서 오버라이드)
   protected handleBoardClick = (position: any) => {
-    const { onPositionClick } = this.props;
-    if (onPositionClick) {
-      onPositionClick(position);
-    }
+    // 기본 구현: 아무것도 하지 않음
+    // 서브클래스에서 필요시 오버라이드
   };
 
-  // 위치 하이라이트 확인
+  // 위치 하이라이트 확인 (서브클래스에서 오버라이드)
   protected isPositionHighlighted(position: any): boolean {
-    const { highlightedPositions } = this.props;
-    if (!highlightedPositions) return false;
-    
-    return highlightedPositions.some(pos => 
-      JSON.stringify(pos) === JSON.stringify(position)
-    );
+    // 기본 구현: 하이라이트 없음
+    // 서브클래스에서 필요시 오버라이드
+    return false;
   }
 }
 

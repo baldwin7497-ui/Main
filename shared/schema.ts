@@ -112,7 +112,7 @@ export const GAME_INFO: Record<GameType, GameInfo> = {
 // GameRound is now defined in each game's schema
 
 export interface WebSocketMessage {
-  type: 'room_update' | 'player_joined' | 'player_left' | 'player_ready' | 'game_start' | 'stats_update' | 'error' | 'game_state' | 'round_result' | 'game_end' | 'associate_user' | 'number_choice' | 'odd_even_choice' | 'tic_tac_toe_move' | 'bluff_card_play' | 'bluff_card_challenge' | 'chess_move';
+  type: 'room_update' | 'player_joined' | 'player_left' | 'player_ready' | 'game_start' | 'stats_update' | 'error' | 'game_state' | 'round_result' | 'game_end' | 'associate_user' | 'number_choice' | 'odd_even_choice' | 'tic_tac_toe_move' | 'bluff_card_play' | 'bluff_card_challenge' | 'chess_move' | 'kick_vote';
   data?: any;
   roomId?: string;
   userId?: string;

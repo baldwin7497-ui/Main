@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { useWebSocket } from '@/hooks/use-websocket';
@@ -31,6 +31,10 @@ export default function GamePlayPage({ roomId }: GamePlayPageProps) {
   const [selectedChoice, setSelectedChoice] = useState<GameChoice | null>(null);
   const [moveSubmitted, setMoveSubmitted] = useState(false);
 
+  // WebSocket 함수들의 안정적인 참조를 위한 ref
+  const disconnectRef = useRef<((permanent?: boolean) => void) | null>(null);
+  const connectRef = useRef<(() => void) | null>(null);
+
   const { data: room } = useQuery<RoomWithPlayers>({
     queryKey: ['/api/rooms', roomId],
     enabled: !!roomId,
@@ -41,7 +45,8 @@ export default function GamePlayPage({ roomId }: GamePlayPageProps) {
     enabled: !!roomId,
   });
 
-  const { sendMessage, isConnected } = useWebSocket('/ws', {
+  const { sendMessage, isConnected, disconnect, connect } = useWebSocket('/ws', {
+    reconnect: true, // 재연결 활성화
     onMessage: (message: any) => {
       console.log('📨 WebSocket 메시지 수신:', message.type, message.data);
       
@@ -53,11 +58,13 @@ export default function GamePlayPage({ roomId }: GamePlayPageProps) {
           break;
         case 'game_state':
           console.log('🔄 게임 상태 수신:', message.data);
+          console.log('📊 연결 해제된 플레이어:', message.data?.disconnectedPlayers || []);
           setGameState(message.data);
           setMoveSubmitted(false);
           break;
         case 'game_update': // 이 케이스 추가!
           console.log('🔄 게임 상태 업데이트:', message.data);
+          console.log('📊 연결 해제된 플레이어:', message.data?.disconnectedPlayers || []);
           setGameState(message.data);
           setMoveSubmitted(false);
           break;
@@ -72,6 +79,10 @@ export default function GamePlayPage({ roomId }: GamePlayPageProps) {
         case 'player_left':
           console.log('👤 플레이어가 나감:', message.data);
           // 게임 상태가 업데이트되면 자동으로 반영됨
+          // 연결 해제인 경우 추가 처리
+          if (message.data?.reason === 'disconnected') {
+            console.log('🔌 플레이어 연결 해제:', message.data);
+          }
           break;
         case 'player_reconnected':
           console.log('🔄 플레이어 재연결:', message.data);
@@ -104,12 +115,55 @@ export default function GamePlayPage({ roomId }: GamePlayPageProps) {
     }
   });
 
+  // WebSocket 함수 참조 업데이트
+  useEffect(() => {
+    disconnectRef.current = disconnect;
+    connectRef.current = connect;
+  }, [disconnect, connect]);
+
   useEffect(() => {
     if (!currentUser || !roomId) {
       setLocation('/');
       return;
     }
   }, [currentUser, roomId, setLocation]);
+
+  // WebSocket 연결 관리
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      console.log('🎮 페이지 나가기 감지 - WebSocket 연결 정리');
+      disconnectRef.current?.(true);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      console.log('🎮 게임 페이지 언마운트 - WebSocket 연결 정리');
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      disconnectRef.current?.(true);
+    };
+  }, []); // 의존성 배열 없음 - 컴포넌트 마운트/언마운트 시에만 실행
+
+  // 페이지 포커스 복귀 시 재연결 처리를 별도 effect로 분리
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && !isConnected) {
+        console.log('🔄 페이지 포커스 복귀 - WebSocket 재연결 시도');
+        // 약간의 지연 후 재연결 시도
+        setTimeout(() => {
+          if (!isConnected) {
+            connectRef.current?.();
+          }
+        }, 500);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isConnected]); // isConnected만 의존성으로 유지
 
   // 게임 페이지에서 WebSocket에 방 정보 전송
   useEffect(() => {
@@ -120,7 +174,7 @@ export default function GamePlayPage({ roomId }: GamePlayPageProps) {
         data: { roomId: roomId }
       });
     }
-  }, [isConnected, currentUser, roomId]);
+  }, [isConnected, currentUser, roomId, sendMessage]);
 
   // 게임 데이터가 로드되면 게임 상태 설정
   useEffect(() => {
@@ -244,23 +298,16 @@ export default function GamePlayPage({ roomId }: GamePlayPageProps) {
             gamePlayers={gamePlayers}
             onMakeMove={(move) => {
               // 턴 기반 게임은 move를 직접 메시지로 전송
-              sendMessage({
+              const messageToSend = {
                 type: move.type as any,
                 roomId,
                 userId: currentUser?.id,
                 data: move
-              });
+              };
+              sendMessage(messageToSend);
               setMoveSubmitted(true);
             }}
             canMakeMove={!moveSubmitted && gameState.currentPlayer === currentUser?.id}
-            onSendMessage={(message) => {
-              sendMessage({
-                ...message,
-                roomId,
-                userId: currentUser?.id
-              });
-              setMoveSubmitted(true);
-            }}
           />
         );
 

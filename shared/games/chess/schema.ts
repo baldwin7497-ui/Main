@@ -1,5 +1,5 @@
 // Chess Game Schema
-import type { BoardGameState, BaseChoice, GameTurn, GameConfig } from '../base/types/game-types';
+import type { TurnBasedGameState, BaseChoice, GameTurn, GameConfig } from '../base/types/game-types';
 
 export type ChessPieceType = 'pawn' | 'rook' | 'knight' | 'bishop' | 'queen' | 'king';
 export type ChessColor = 'white' | 'black';
@@ -27,7 +27,7 @@ export interface ChessMove {
 
 export type ChessBoard = (ChessPiece | null)[][];
 
-export interface ChessGameState extends BoardGameState {
+export interface ChessGameState extends TurnBasedGameState {
   gameType: 'chess';
   roomId: string;
   category: 'board-game';

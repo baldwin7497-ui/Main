@@ -4,7 +4,6 @@ import type {
   CoreGameState,
   RoundBasedGameState,
   TurnBasedGameState,
-  BoardGameState,
   BaseChoice,
   GameMove,
   GameMessage,
@@ -15,7 +14,7 @@ import type {
 export interface GameStateMap {
   'round-based': RoundBasedGameState;
   'turn-based': TurnBasedGameState;
-  'board-game': BoardGameState;
+  'board-game': TurnBasedGameState; // board-game도 TurnBasedGameState 사용
   'real-time': CoreGameState;
 }
 
@@ -97,9 +96,9 @@ export interface ITurnBasedGame<
   getMoveHistory(fromTurn?: number): GameMove[];
 }
 
-// 보드 게임 특화 인터페이스
+// 보드 게임 특화 인터페이스 (TurnBasedGameState 확장)
 export interface IBoardGame<
-  TState extends BoardGameState = BoardGameState,
+  TState extends TurnBasedGameState = TurnBasedGameState,
   TMove extends GameMove = GameMove,
   TBoard = any
 > extends ITurnBasedGame<TState, TMove> {

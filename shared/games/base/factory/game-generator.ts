@@ -282,7 +282,7 @@ export const {{GAME_NAME}}_CONFIG: GameConfig = {
 
       case 'board-game':
         content = `import type { 
-  BoardGameState, 
+  TurnBasedGameState, 
   GameConfig 
 } from '@shared/games/base/game-types';
 
@@ -298,8 +298,9 @@ export interface {{GameName}}Move {
 }
 
 // {{GameName}} 게임 상태
-export interface {{GameName}}GameState extends BoardGameState {
+export interface {{GameName}}GameState extends TurnBasedGameState {
   board: {{GameName}}Cell[][];
+  boardSize: { width: number; height: number };
   // TODO: 게임별 상태 필드 추가
 }
 

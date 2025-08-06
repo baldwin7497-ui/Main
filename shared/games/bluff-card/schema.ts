@@ -19,6 +19,8 @@ export type BluffCardChoice = BluffCardNumber;
 export interface PlayerHand {
   /** 플레이어가 보유한 카드들 */
   cards: BluffCardNumber[];
+  /** 패널티로 받은 카드의 인덱스들 */
+  penaltyCardIndices: number[];
 }
 
 /** 플레이한 카드 정보 */

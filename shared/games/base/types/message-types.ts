@@ -6,7 +6,6 @@ import type {
   CoreGameState,
   RoundBasedGameState,
   TurnBasedGameState,
-  BoardGameState,
   GameMove,
   GameStateMessage
 } from './game-types';

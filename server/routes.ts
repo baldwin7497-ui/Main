@@ -71,22 +71,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
           for (const room of userRooms) {
             const player = room.players.find(p => p.userId === message.data.userId);
             if (player && room.status === 'playing') {
-              console.log(`재연결 감지: ${message.data.userId}가 게임 중인 방 ${room.id}에 재연결`);
-              
-              // 클라이언트를 방과 연결
-              client.roomId = room.id;
-              
-              // 게임 핸들러에서 재연결 처리
+              // 게임 상태 확인
               const gameState = await storage.getGame(room.id);
               if (gameState && gameState.gameType) {
-                const handler = getGameHandler(gameState.gameType);
-                if (handler && 'handlePlayerReconnect' in handler) {
-                  await handler.handlePlayerReconnect(room.id, message.data.userId);
+                // 연결 해제된 플레이어 목록에 있는지 확인
+                const isDisconnected = gameState.disconnectedPlayers?.includes(message.data.userId);
+                
+                if (isDisconnected) {
+                  console.log(`재연결 감지: ${message.data.userId}가 게임 중인 방 ${room.id}에 재연결`);
+                  
+                  // 클라이언트를 방과 연결
+                  client.roomId = room.id;
+                  
+                  // 게임 핸들러에서 재연결 처리
+                  const handler = getGameHandler(gameState.gameType);
+                  if (handler && 'handlePlayerReconnect' in handler) {
+                    await handler.handlePlayerReconnect(room.id, message.data.userId);
+                  }
+                  
+                  // 방 업데이트 브로드캐스트
+                  await broadcastRoomUpdate(room.id);
+                } else {
+                  console.log(`연결 유지: ${message.data.userId}가 이미 연결된 상태`);
+                  // 클라이언트를 방과 연결만 하고 재연결 처리는 하지 않음
+                  client.roomId = room.id;
                 }
               }
-              
-              // 방 업데이트 브로드캐스트
-              await broadcastRoomUpdate(room.id);
               break;
             }
           }
@@ -119,25 +129,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         break;
 
       case 'tic_tac_toe_move':
+        console.log('🎯 서버: tic_tac_toe_move 메시지 수신:', message);
         if (message.roomId && message.userId && message.data?.position) {
           try {
             const handler = getGameHandler('tic-tac-toe');
+            console.log('🎮 서버: 틱택토 핸들러 존재:', !!handler, 'makeMove:', 'makeMove' in (handler || {}));
             if (handler && 'makeMove' in handler) {
               // 틱택토는 턴 기반 게임이므로 makeMove 사용
               const gameState = await handler.getGameState(message.roomId);
+              console.log('🎯 서버: 틱택토 게임 상태:', { 
+                gameExists: !!gameState, 
+                currentPlayer: gameState?.currentPlayer,
+                userId: message.userId,
+                isCurrentPlayer: gameState?.currentPlayer === message.userId
+              });
               if (gameState) {
                 const playerSymbol = gameState.playerSymbols[message.userId];
                 const move = {
                   position: message.data.position,
                   symbol: playerSymbol
                 };
+                console.log('🎯 서버: 틱택토 이동:', move);
                 await handler.makeMove(message.roomId, message.userId, move);
+                console.log('✅ 서버: 틱택토 이동 완료');
               }
             }
           } catch (error) {
-            console.error('Error handling tic-tac-toe move:', error);
-            // 에러를 클라이언트에 전송할 수 있음
+            console.error('❌ 서버: Error handling tic-tac-toe move:', error);
           }
+        } else {
+          console.log('❌ 서버: tic_tac_toe_move 메시지 검증 실패:', {
+            roomId: !!message.roomId,
+            userId: !!message.userId,
+            position: !!message.data?.position
+          });
         }
         break;
 
@@ -195,31 +220,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         break;
 
+      case 'kick_vote':
+        if (message.roomId && message.userId && message.data?.targetPlayerId && message.data?.voteType) {
+          try {
+            // 게임 타입별로 적절한 핸들러 찾기
+            const gameState = await storage.getGame(message.roomId);
+            if (gameState && gameState.gameType) {
+              const handler = getGameHandler(gameState.gameType);
+              if (handler && 'voteKick' in handler) {
+                await handler.voteKick(message.roomId, message.userId, message.data.targetPlayerId, message.data.voteType);
+              } else {
+                console.log('Game handler does not support kick voting');
+              }
+            }
+          } catch (error) {
+            console.error('Error handling kick vote:', error);
+          }
+        }
+        break;
+
       default:
         console.log('Unhandled WebSocket message:', message.type);
     }
   }
 
   async function handleUserDisconnect(userId: string) {
+    console.log(`🔌 사용자 연결 해제: ${userId}`);
+    
     // Find and leave any rooms the user was in
     const rooms = await storage.getAllRoomsWithPlayers();
+    console.log(`📋 사용자가 참여 중인 방 수: ${rooms.length}`);
     let shouldDeleteUser = true; // 유저 삭제 여부 결정
 
     for (const room of rooms) {
       const player = room.players.find(p => p.userId === userId);
       if (player) {
+        console.log(`🏠 방 ${room.id}에서 플레이어 ${userId} 발견, 방 상태: ${room.status}`);
+        
         // 게임이 진행 중이라면 방에서 플레이어를 제거하지 않고 게임에서만 턴 처리
         if (room.status === 'playing') {
+          console.log(`🎮 게임 진행 중 - 연결 해제 처리`);
           const gameState = await storage.getGame(room.id);
           if (gameState && gameState.gameType) {
+            console.log(`🎯 게임 타입: ${gameState.gameType}, 연결 해제된 플레이어: ${gameState.disconnectedPlayers || []}`);
             const handler = getGameHandler(gameState.gameType);
             if (handler && 'handlePlayerDisconnect' in handler) {
+              console.log(`🔧 게임 핸들러에서 연결 해제 처리`);
               await handler.handlePlayerDisconnect(room.id, userId);
+              
+              // 처리 후 상태 확인
+              const updatedGameState = await storage.getGame(room.id);
+              console.log(`✅ 연결 해제 처리 후 - 연결 해제된 플레이어: ${updatedGameState?.disconnectedPlayers || []}`);
             }
           }
 
+          // 연결 해제 상태를 모든 클라이언트에게 브로드캐스트
+          console.log(`📢 연결 해제 브로드캐스트 전송`);
+          broadcastToRoom(room.id, { 
+            type: 'player_left', 
+            data: { userId, nickname: player.user.nickname, reason: 'disconnected' } 
+          });
+
+          // 방 업데이트도 브로드캐스트하여 UI가 최신 상태를 반영하도록 함
+          await broadcastRoomUpdate(room.id);
+
           // 모든 플레이어가 연결 해제되었는지 확인
           const connectedPlayers = getConnectedPlayers(room.id);
+          console.log(`👥 연결된 플레이어 수: ${connectedPlayers.length}`);
           if (connectedPlayers.length === 0) {
             console.log(`모든 플레이어가 연결 해제됨. 방을 삭제: ${room.id}`);
             await storage.deleteRoom(room.id);
@@ -229,8 +296,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           } else {
             // 게임이 진행 중이고 다른 플레이어가 있으면 유저를 삭제하지 않음
             shouldDeleteUser = false;
+            console.log(`🔄 다른 플레이어가 있으므로 유저 삭제하지 않음`);
           }
         } else {
+          console.log(`🏠 게임 진행 중이 아님 - 방에서 플레이어 제거`);
           // 게임이 진행 중이 아닐 때만 방에서 플레이어 제거
           await storage.removePlayerFromRoom(room.id, userId);
           
@@ -255,7 +324,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     // 게임이 진행 중이 아닐 때만 유저 삭제
     if (shouldDeleteUser) {
+      console.log(`🗑️ 유저 삭제: ${userId}`);
       await storage.deleteUser(userId);
+    } else {
+      console.log(`⏸️ 유저 삭제 보류: ${userId} (게임 진행 중)`);
     }
     sendServerStats();
   }

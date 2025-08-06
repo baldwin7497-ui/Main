@@ -1,4 +1,4 @@
-import { BaseBoardGameHandler } from "@shared/games/base/handlers/board-game-handler";
+import { BaseTurnGameHandler } from "@shared/games/base/handlers/turn-based-game-handler";
 import type { 
   TicTacToeGameState,
   TicTacToeMove,
@@ -9,29 +9,12 @@ import type {
 } from "@shared/games/tic-tac-toe/schema";
 import { TIC_TAC_TOE_CONFIG, TIC_TAC_TOE_WIN_CONDITIONS } from "@shared/games/tic-tac-toe/schema";
 
-export class TicTacToeHandler extends BaseBoardGameHandler<
+export class TicTacToeHandler extends BaseTurnGameHandler<
   TicTacToeGameState,
   TicTacToeMove
 > {
   protected getGameType(): string {
     return 'tic-tac-toe';
-  }
-
-  protected getBoardSize(): { width: number; height: number } {
-    return { width: 3, height: 3 };
-  }
-
-  initializeBoard(): TicTacToeBoard {
-    return [
-      [null, null, null],
-      [null, null, null],
-      [null, null, null]
-    ];
-  }
-
-  protected validatePositionInternal(position: TicTacToePosition, boardSize: { width: number; height: number }): boolean {
-    return position.row >= 0 && position.row < boardSize.height &&
-           position.col >= 0 && position.col < boardSize.width;
   }
 
   protected initializeGameState(roomId: string, playerIds: string[]): TicTacToeGameState {
@@ -45,10 +28,42 @@ export class TicTacToeHandler extends BaseBoardGameHandler<
       [playerIds[1]]: 'O'
     };
 
-    return this.createBaseBoardGameState(roomId, playerIds, this.getGameType(), {
+    return this.createBaseTurnGameState(roomId, playerIds, this.getGameType(), {
+      category: 'board-game',
+      board: this.initializeBoard(),
+      boardSize: { width: 3, height: 3 },
       playerSymbols,
-      disconnectedPlayers: [] // 연결 관리 필드 초기화
+      disconnectedPlayers: []
     });
+  }
+
+  // 보드 초기화
+  private initializeBoard(): TicTacToeBoard {
+    return [
+      [null, null, null],
+      [null, null, null],
+      [null, null, null]
+    ];
+  }
+
+  // 위치 유효성 검사
+  private validatePosition(position: TicTacToePosition): boolean {
+    return position.row >= 0 && position.row < 3 && position.col >= 0 && position.col < 3;
+  }
+
+  // 보드 복사 헬퍼
+  private cloneBoard(board: TicTacToeBoard): TicTacToeBoard {
+    return board.map(row => [...row]);
+  }
+
+  // 위치가 비어있는지 확인
+  private isPositionEmpty(board: TicTacToeBoard, row: number, col: number): boolean {
+    return board[row] && board[row][col] === null;
+  }
+
+  // 보드 경계 내인지 확인
+  private isWithinBounds(row: number, col: number): boolean {
+    return row >= 0 && row < 3 && col >= 0 && col < 3;
   }
 
   public validateMove(gameState: TicTacToeGameState, userId: string, move: TicTacToeMove): boolean {
@@ -129,10 +144,6 @@ export class TicTacToeHandler extends BaseBoardGameHandler<
     }
 
     return moves;
-  }
-
-  public validatePosition(position: TicTacToePosition): boolean {
-    return this.isWithinBounds(position.row, position.col);
   }
 
   // 승자 확인

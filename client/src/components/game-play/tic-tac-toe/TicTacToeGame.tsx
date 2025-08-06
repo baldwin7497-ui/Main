@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { KickVotePanel } from '@/components/game-play/common/kick-vote-panel';
 import type { 
   TicTacToeGameState, 
   TicTacToePosition,
@@ -84,6 +85,7 @@ export function TicTacToeGame({
     const symbol = gameState.playerSymbols[playerId];
     const isCurrentPlayer = playerId === gameState.currentPlayer;
     const isMe = playerId === currentUser?.id;
+    const isDisconnected = gameState.disconnectedPlayers?.includes(playerId) || false;
 
     return (
       <div
@@ -95,13 +97,22 @@ export function TicTacToeGame({
         }`}
       >
         <div className="flex items-center justify-between">
-          <div>
-            <div className="font-medium text-slate-800">
-              {player?.user.nickname || 'Unknown'}
-              {isMe && ' (나)'}
-            </div>
-            <div className="text-sm text-slate-600">
-              {symbol} 플레이어
+          <div className="flex items-center">
+            <div 
+              className={`w-3 h-3 rounded-full mr-2 ${
+                isDisconnected ? 'bg-red-500' : 'bg-green-500'
+              }`}
+              title={isDisconnected ? '연결 해제됨' : '연결됨'}
+            />
+            <div>
+              <div className={`font-medium text-slate-800 ${isDisconnected ? 'text-gray-500' : ''}`}>
+                {player?.user.nickname || 'Unknown'}
+                {isMe && ' (나)'}
+                {isDisconnected && ' (연결 해제)'}
+              </div>
+              <div className="text-sm text-slate-600">
+                {symbol} 플레이어
+              </div>
             </div>
           </div>
           {isCurrentPlayer && gameState.gameStatus !== 'game_finished' && (
@@ -113,6 +124,7 @@ export function TicTacToeGame({
       </div>
     );
   };
+
 
   return (
     <Card className="bg-white border-slate-200">
@@ -133,6 +145,13 @@ export function TicTacToeGame({
             {gameState.playerIds.map(playerId => getPlayerInfo(playerId))}
           </div>
         </div>
+
+        {/* 퇴출 투표 UI */}
+        <KickVotePanel 
+          gameState={gameState} 
+          currentUser={currentUser} 
+          gamePlayers={gamePlayers} 
+        />
 
         {/* 게임 완료 시 다시 시작 버튼 */}
         {gameState.gameStatus === 'game_finished' && (

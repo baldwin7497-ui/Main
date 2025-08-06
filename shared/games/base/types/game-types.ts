@@ -51,12 +51,17 @@ export interface TurnBasedGameState extends CoreGameState {
     winner?: string;
     reason: 'checkmate' | 'stalemate' | 'timeout' | 'resign' | 'draw_offer' | 'three_line' | 'other';
   };
-}
-
-// 보드 게임 상태 (체스, 틱택토, 바둑 등)
-export interface BoardGameState extends TurnBasedGameState {
-  board: any; // 게임별로 구체적 타입 지정
-  boardSize: { width: number; height: number };
+  // 보드 게임 관련 필드들 (선택적)
+  board?: any; // 게임별로 구체적 타입 지정
+  boardSize?: { width: number; height: number };
+  // 퇴출 투표 시스템
+  kickVote?: {
+    targetPlayerId: string;
+    agreeVotes: string[];
+    disagreeVotes: string[];
+    voteStartTime: number;
+    voteEndTime: number;
+  };
 }
 
 // 기본 게임 상태 (하위 호환성)
@@ -159,14 +164,6 @@ export interface TurnGameHandlers<TGameState extends TurnBasedGameState, TMove>
   getValidMoves: (gameState: TGameState, userId: string) => TMove[];
 }
 
-// 보드 게임 핸들러 인터페이스
-export interface BoardGameHandlers<TGameState extends BoardGameState, TMove> 
-  extends TurnGameHandlers<TGameState, TMove> {
-  initializeBoard: (boardSize: { width: number; height: number }) => any;
-  validatePosition: (position: any, boardSize: { width: number; height: number }) => boolean;
-  getBoardState: (gameState: TGameState) => any;
-}
-
 // 기본 게임 핸들러 (하위 호환성)
 export interface BaseGameHandlers<TGameState extends BaseGameState, TChoice extends BaseChoice> 
   extends RoundGameHandlers<TGameState, TChoice> {}
@@ -194,10 +191,4 @@ export interface TurnBasedGameProps<TGameState extends TurnBasedGameState, TMove
   onMakeMove: (move: TMove) => void;
   canMakeMove: boolean;
   validMoves?: TMove[];
-}
-
-// 보드 게임 Props
-export interface BoardGameProps<TGameState extends BoardGameState, TMove> extends TurnBasedGameProps<TGameState, TMove> {
-  onPositionClick?: (position: any) => void;
-  highlightedPositions?: any[];
 }

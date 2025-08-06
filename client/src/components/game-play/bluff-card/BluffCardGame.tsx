@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { KickVotePanel } from '@/components/game-play/common/kick-vote-panel';
 import type { 
   BluffCardNumber, 
   BluffCardGameState, 
@@ -12,7 +13,6 @@ import type { TurnBasedGameProps } from '@shared/games/base/types/game-types';
 import { GameBoard } from './game-board';
 
 interface BluffCardGameProps extends TurnBasedGameProps<BluffCardGameState, BluffCardPlayMessage | BluffCardChallengeMessage> {
-  onSendMessage?: (message: any) => void;
 }
 
 /**
@@ -31,7 +31,6 @@ export function BluffCardGame({
   room,
   currentUser,
   gamePlayers,
-  onSendMessage,
   onMakeMove,
   canMakeMove
 }: BluffCardGameProps) {
@@ -96,14 +95,9 @@ export function BluffCardGame({
       actualTruth: isActuallyTruth
     };
     
-    const message = {
-      type: 'bluff_card_play',
-      data: move
-    };
-    
-    onSendMessage?.(message);
+    onMakeMove?.(move);
     setSelectedCardIndices([]);
-  }, [selectedCardIndices, playerHand, gameState.currentTarget, onSendMessage]);
+  }, [selectedCardIndices, playerHand, gameState.currentTarget, onMakeMove]);
 
   const handleChallenge = useCallback(() => {
     const move: BluffCardChallengeMessage = {
@@ -111,11 +105,8 @@ export function BluffCardGame({
       challenge: true
     };
 
-    onSendMessage?.({
-      type: 'bluff_card_challenge',
-      data: move
-    });
-  }, [onSendMessage]);
+    onMakeMove?.(move);
+  }, [onMakeMove]);
 
   // ============================================================================
   // 유틸리티 함수들
@@ -262,6 +253,13 @@ export function BluffCardGame({
         
         {/* 턴 정보 */}
         {renderTurnInfo()}
+        
+        {/* 퇴출 투표 UI */}
+        <KickVotePanel 
+          gameState={gameState} 
+          currentUser={currentUser} 
+          gamePlayers={gamePlayers} 
+        />
         
         {/* 플레이어 손패 */}
         {renderPlayerHand()}

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { KickVotePanel } from '@/components/game-play/common/kick-vote-panel';
 import type { 
   ChessGameState, 
   ChessMove, 
@@ -314,6 +315,13 @@ export function ChessGame({
             ))}
           </div>
         </div>
+
+        {/* 퇴출 투표 UI */}
+        <KickVotePanel 
+          gameState={gameState} 
+          currentUser={currentUser} 
+          gamePlayers={gamePlayers} 
+        />
 
         {/* 게임 통계 */}
         <div className="grid grid-cols-2 gap-4 text-sm">
